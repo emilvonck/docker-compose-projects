@@ -1,0 +1,54 @@
+---
+version: "3"
+
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ${PWD}/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+    restart: unless-stopped
+
+  telegraf:
+    build: ./telegraf
+    container_name: telegraf
+    user: "999:999"
+    ports:
+      - "9012:9012"
+    volumes:
+      - ${PWD}/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf
+      - ${PWD}/telegraf/telegraf.d:/etc/telegraf/telegraf.d
+    command:
+      - --config-directory=/etc/telegraf/telegraf.d/
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_RENDERING_SERVER_URL: http://grafana_renderer:8081/render
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      GF_LOG_FILTERS: rendering:debug
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
+  grafana_renderer:
+    image: grafana/grafana-image-renderer:latest
+    container_name: grafana_renderer
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
